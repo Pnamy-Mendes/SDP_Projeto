@@ -5,7 +5,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    background: url('./../media/123.png') no-repeat center center fixed;
+    background: url('./../media/123.png') no-repeat center center fixed !important;
     background-size: cover;
 }
 
