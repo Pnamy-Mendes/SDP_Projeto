@@ -10,10 +10,12 @@ import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
 import { useStyles } from './../styles/NotesFormStyle'
 import { useSelector, useDispatch } from 'react-redux'
-import { toggleNotesForm, updateNote, addNote, setNotes, fetchNotes } from './../redux/notesReducer'
+import { toggleNotesForm, updateNote, addNote, setNotes, state, fetchNotes } from './../redux/notesReducer'
 import notesCategories from './../util/NotesCategories'
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css'; // for snow theme
+import { unwrapResult } from '@reduxjs/toolkit';
+import { createUpdateNote } from './../redux/notesReducer';
 
 
 export default function NotesForm() {
@@ -32,31 +34,17 @@ export default function NotesForm() {
         content: noteToEdit.content, // Make sure to match the property names
       });
     }
-    console.log(noteToEdit);
+    console.log("noteToEdit",noteToEdit);
+    console.log("form",form);
+    dispatch(fetchNotes());
+    console.log(state)
   }, [noteToEdit]);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const response = await fetch('/api/notes', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include', // to include cookies with the request
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch notes');
-        }
-
-        const notes = await response.json();
-        dispatch(setNotes(notes)); // Dispatch an action to update your state with the fetched notes
-      } catch (error) {
-        console.error('Error fetching notes:', error);
-      }
-    })();
+    console.log('fetching notes UseEffect');
+    dispatch(fetchNotes());
   }, [dispatch]);
+  
 
   const handleClose = () => {
     setForm(initialFormState);
@@ -65,36 +53,32 @@ export default function NotesForm() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (noteToEdit) {
-      try {
-        // Dispatch updateNote action if editing
-        await dispatch(updateNote({
+    try {
+      let actionResult;
+      if (noteToEdit) {
+        // Update note
+        actionResult = await dispatch(updateNote({
           ...form,
-          id: noteToEdit.id, // Include the note ID in the update payload
+          id: noteToEdit.id,
         }));
-  
-        // Fetch updated notes and update the state
-        const updatedNotes = await dispatch(fetchNotes());
-        dispatch(setNotes(updatedNotes));
-      } catch (error) {
-        console.error('Error updating note:', error);
-      }
-    } else {
-      try {
-        // Dispatch addNote action if adding a new note
-        await dispatch(addNote({
+      } else {
+        // Create note
+        actionResult = await dispatch(addNote({
           ...form,
         }));
-  
-        // Fetch updated notes and update the state
-        const updatedNotes = await dispatch(fetchNotes());
-        dispatch(setNotes(updatedNotes));
-      } catch (error) {
-        console.error('Error adding note:', error);
       }
+      // Get the result from the dispatched action
+      const result = unwrapResult(actionResult);
+      // Fetch all notes again to refresh the list
+      const response = await fetch('/api/notes');
+      const data = await response.json();
+      dispatch(setNotes(data));
+    } catch (error) {
+      console.error('Error processing note:', error);
     }
     handleClose();
   };
+  
   
 
   return (
@@ -137,7 +121,7 @@ export default function NotesForm() {
 
               <Grid item xs={12} sm={4} style={{display:"none"}}>
                 <Select
-                  value={form.category}
+                  value={form.category || ''}
                   onChange={(event) => setForm({ ...form, category: event.target.value })}
                   displayEmpty
                   className={classes.input}  

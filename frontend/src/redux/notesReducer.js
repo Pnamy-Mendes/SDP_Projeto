@@ -2,15 +2,13 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
 // Async thunk for fetching notes
-export const fetchNotes = createAsyncThunk('notes/fetchNotes', async (_, { getState }) => {
-  const state = getState();
+export const fetchNotes = createAsyncThunk('notes/fetchNotes', async () => {
   const response = await fetch('/api/notes', {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
-      // Include other headers if necessary, like authorization tokens
     },
-    credentials: 'include', // to include cookies with the request
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -40,20 +38,25 @@ export const addNote = createAsyncThunk('notes/addNote', async (noteData, { getS
 });
 
 
-export const deleteNote = createAsyncThunk('notes/deleteNote', async (noteId, { getState }) => {
-  const response = await fetch(`/api/notes/${noteId}`, {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-  });
+// For example, after the delete operation, the backend should return a success response.
+export const deleteNote = createAsyncThunk('notes/deleteNote', async (noteId, { getState, rejectWithValue }) => {
+  try {
+    const response = await fetch(`/api/notes/${noteId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to delete note');
+    if (!response.ok) {
+      throw new Error('Failed to delete note');
+    }
+    // You might need to adjust this depending on how your API works
+    return noteId;
+  } catch (error) {
+    return rejectWithValue(error.message);
   }
-
-  return noteId; // Return the ID of the deleted note
 });
 
 
@@ -129,13 +132,30 @@ export const slice = createSlice({
       state.showNotesForm = !state.showNotesForm
       state.noteToEdit = undefined
     },
-    /* createUpdateNote: (state, action) => {
+    createUpdateNote: (state, action) => {
+      const { id, ...noteData } = action.payload;
+      const existingIndex = state.all.findIndex(note => note.id === id);
+  
+      if (existingIndex !== -1) {
+        // Update existing note
+        state.all[existingIndex] = { ...state.all[existingIndex], ...noteData };
+      } else {
+        // Add new note
+        // The backend should assign a unique ID for the new note.
+        state.all.push({ id, ...noteData });
+      }
+  
+      // Update sorted to reflect the changes in all
+      state.sorted = [...state.all];
+    },
+    /* },
+    createUpdateNote: (state, action) => {
       const date = now()
       if (!action.payload.id) {
         // create new note
-        /*commented const id = generateNoteId(state.all) 
+        /* const id = generateNoteId(state.all) 
         const completed = false
-        state.all.push({ /*REMOVE on creation error 501 id, REMOVE commented  completed, date, ...action.payload })
+        state.all.push({  completed, /* date,  ...action.payload })
       } else {
         // update existing note
         state.all.forEach((note, index) => {
@@ -146,7 +166,7 @@ export const slice = createSlice({
           }
         })
       }
-    }, */
+    } ,*/
     editNote: (state, action) => {
       state.noteToEdit = action.payload;
       state.showNotesForm = true;
@@ -196,8 +216,8 @@ export const slice = createSlice({
     },
     setNotes: (state, action) => {
       state.all = action.payload;
-      state.sorted = action.payload; // Assuming you want to set the sorted notes as well
-      state.pending = false; // Optionally, set pending to false if you're using it to track loading state
+      state.sorted = action.payload; // Sort/filter as needed
+      state.pending = false;
     },
     setCategories: (state, action) => {
       state.categories = action.payload;
@@ -220,26 +240,26 @@ export const slice = createSlice({
     extraReducers: { 
       [fetchNotes.fulfilled]: (state, action) => {
         state.all = action.payload;
-        state.sorted = action.payload; // You might want to sort or filter these notes
+        state.sorted = action.payload;
         state.pending = false;
       }, 
       [updateNote.fulfilled]: (state, action) => {
-        const index = state.all.findIndex(note => note.id === action.payload.id);
+        const index = state.all.findIndex((note) => note.id === action.payload.id);
         if (index !== -1) {
           state.all[index] = action.payload;
-          // Assuming you want to refresh the sorted array as well
-          state.sorted = state.all.filter(note => note.category === state.activeCategory);
         }
+        state.sorted = [...state.all];
       },
+  
       [addNote.fulfilled]: (state, action) => {
         state.all.push(action.payload);
-        // Assuming you want to refresh the sorted array as well
-        state.sorted = state.all.filter(note => note.category === state.activeCategory);
+        state.sorted = [...state.all];
       },
+  
       [deleteNote.fulfilled]: (state, action) => {
-        state.all = state.all.filter(note => note.id !== action.payload);
-        // Assuming you want to refresh the sorted array as well
-        state.sorted = state.all.filter(note => note.category === state.activeCategory);
+        const id = action.payload;
+        state.all = state.all.filter((note) => note.id !== id);
+        state.sorted = state.all.filter((note) => note.category === state.activeCategory);
       },
     },
   }
@@ -267,6 +287,7 @@ export const {
   saveNotes, 
   setNotes,
   setCategories, 
+  state,
 } = slice.actions;
 
 

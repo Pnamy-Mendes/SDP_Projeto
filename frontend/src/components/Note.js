@@ -3,7 +3,7 @@ import { Card, CardContent, Checkbox, IconButton, Typography } from '@mui/materi
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useDispatch } from 'react-redux';
-import { toggleNoteStatus, deleteNote } from './../redux/notesReducer';
+import { toggleNoteStatus, deleteNote, fetchNotes, setNotes } from './../redux/notesReducer';
 import { editNote } from './../redux/notesReducer';
 
 
@@ -16,9 +16,18 @@ function Note({ note }) {
     dispatch(toggleNoteStatus(note.id));
   };
 
-  const handleDelete = () => {
-    dispatch(deleteNote(note.id));
+  const handleDelete = async () => {
+    try {
+      await dispatch(deleteNote(note.id));
+      // Fetch all notes again to refresh the list
+      const response = await fetch('/api/notes');
+      const data = await response.json();
+      dispatch(setNotes(data));
+    } catch (error) {
+      console.error('Error deleting note:', error);
+    }
   };
+  
 
   const handleEdit = () => {
     dispatch(editNote(note));

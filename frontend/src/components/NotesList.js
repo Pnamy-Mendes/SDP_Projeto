@@ -26,6 +26,7 @@ export default function NotesList() {
         }
 
         const notes = await response.json();
+        console.log("notes fetch on notesList",notes)
         dispatch(setNotes(notes)); // Dispatch an action to update your state with the fetched notes
       } catch (error) {
         console.error('Error fetching notes:', error);
